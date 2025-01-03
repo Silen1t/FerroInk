@@ -34,7 +34,7 @@ winresource = "0.1.19"
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/YOUA/Formatify
+git clone https://github.com/Silen1t/Formatify
 ```
 
 2. Navigate to the project directory:
