@@ -1,0 +1,148 @@
+import { Button, VerticalBox, LineEdit, CheckBox, HorizontalBox, ComboBox } from "std-widgets.slint";
+
+enum SupportedImageFormats {
+    Png,
+    WebP,
+    Bmp,
+    Jpeg
+}
+
+export component AppWindow inherits Window {
+    // Window Properties
+    title: "Formatify";
+    icon: @image-url("assets/images/FormatifyAppIcon.png");
+    max-height: 720px;
+    min-height: 720px;
+    max-width: 635px;
+    min-width: 635px;
+    full-screen: false;
+    background: #1e1f22;
+
+    // Callbacks
+    callback ButtonSelectImageClicked();
+    callback ButtonSelectImageOutputClicked();
+    callback ButtonApplyChangesClicked([string], string, string, SupportedImageFormats);
+    callback SelectFileFormat(int);
+
+
+    // Properties
+    in-out property <[string]> image-path;
+    in-out property <string> image-output-path;
+    in-out property <SupportedImageFormats> format-selected: SupportedImageFormats.Png;
+    out property <string> output-image-name;
+    out property <[string]> supported-image-formats: ["Png", "WebP", "Bmp", "Jpeg"];
+    out property <string> message;
+
+    VerticalLayout {
+        padding: 50px;
+        alignment: center;
+        spacing: 25px;
+
+        Text {
+            text: "Formatify";
+            font-size: 40px;
+            font-weight: 800;
+            horizontal-alignment: center;
+        }
+        // Select Image Box
+        HorizontalBox {
+            alignment: center;
+            spacing: 25px;
+            Button {
+                width: 100px;
+                primary: true;
+                text: "Select Image";
+                clicked => {
+                    root.ButtonSelectImageClicked();
+                }
+            }
+
+            edit-image-path := LineEdit {
+                width: 200px;
+                font-size: 25px;
+                read-only: true;
+                text: image-path[0];
+                horizontal-alignment: center;
+            }
+        }
+
+        // Select Output Path
+        HorizontalBox {
+            alignment: center;
+            spacing: 25px;
+            Button {
+                width: 150px;
+                primary: true;
+                text: "Select Output Path";
+                clicked => {
+                    root.ButtonSelectImageOutputClicked();
+                }
+            }
+
+            edit-image-output-path := LineEdit {
+                width: 200px;
+                font-size: 18px;
+                read-only: true;
+                text: root.image-output-path;
+                horizontal-alignment: center;
+            }
+        }
+
+        HorizontalBox {
+            alignment: center;
+            spacing: 25px;
+
+            Text {
+                text: "File Name";
+                font-size: 18px;
+                horizontal-alignment: center;
+            }
+
+            LineEdit {
+                width: 200px;
+                font-size: 18px;
+                horizontal-alignment: center;
+                placeholder-text: "Enter File Name";
+                accepted(text) => {
+                    output-image-name = self.text;
+                }
+                edited(text) => {
+                    output-image-name = self.text;
+                }
+            }
+        }
+
+        HorizontalBox {
+            alignment: center;
+            spacing: 25px;
+            ComboBox {
+                model: supported-image-formats;
+                current-index: 0;
+                width: 100px;
+                selected(current-value) => {
+                    root.SelectFileFormat(self.current-index);
+                }
+            }
+        }
+
+        HorizontalBox {
+            alignment: center;
+            spacing: 25px;
+            // Confirem Changes
+            Button {
+                width: 150px;
+                primary: true;
+                text: "Apply Changes";
+                enabled: CanApplyChanges();
+                clicked => {
+                    root.ButtonApplyChangesClicked(image-path,image-output-path,output-image-name,format-selected);
+                }
+            }
+        }
+    }
+
+    function CanApplyChanges() -> bool {
+        return image-path.length > 0 && image-output-path != "" && output-image-name != "";
+    }
+
+}
