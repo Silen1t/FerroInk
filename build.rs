@@ -6,7 +6,7 @@ use {
 fn main() -> io::Result<()> {
     // Don't add nay code above this code block because you will be facing issues like
     // environment variable `SLINT_INCLUDE_GENERATED` not defined at compile time use `std::env::var(\"SLINT_INCLUDE_GENERATED\")` to read the variable at run time
-    slint_build::compile("ui/app-window.slint").unwrap();
+    slint_build::compile("ui/app-window.slint").expect("Slint build failed");
 
     // For windows only
     if env::var_os("CARGO_CFG_WINDOWS").is_some() {
