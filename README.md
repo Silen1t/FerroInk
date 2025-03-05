@@ -1,13 +1,19 @@
-# Formatify
+# FerroInk
 
-Formatify is a desktop application that allows users to change image file formats while preserving image quality. The app leverages Rust for its powerful backend capabilities and Slint for its user-friendly graphical interface.
+FerroInk is a desktop application that allows users to change image file formats while preserving image quality. The app leverages Rust for its powerful backend capabilities and Slint for its user-friendly graphical interface.
 
 ## Features
 
 - **Convert Image Formats**: Change images to your preferred format without compromising quality.
 - **Convert Multiple Images**: Change images to your preferred format at once.
-- **Image Formats Supported**: Png, WebP, Bmp ,Jpeg .
-
+- **Supported Types**: 
+```bash
+| From |     To     |
+|------|------------|
+| SVG  | .pdf, .png |
+| PNG  | .svg, .pdf |
+| PDF  |    .svg    |
+```
 ## Technologies Used
 
 - **Backend**: Rust
@@ -19,9 +25,8 @@ This project uses the following dependencies:
 
 ```toml
 [dependencies]
-image = "0.25.5"
 rayon = "1.10.0"
-rfd = "0.15.1"
+rfd = "0.15.2"
 slint = "1.9.1"
 
 [build-dependencies]
@@ -34,13 +39,13 @@ winresource = "0.1.19"
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/Silen1t/Formatify
+git clone https://github.com/Silen1t/FerroInk
 ```
 
 2. Navigate to the project directory:
 
 ```bash
-cd Formatify
+cd FerroInk
 ```
 
 3. Build the project:
@@ -69,19 +74,27 @@ cd target/release
 
 3. Run the executable file:
 ```bash
-Formatify.exe
+FerroInk.exe
 ```
 
 ## Screenshots
 
-### Format Conversion Interface
+### Interfaces
 
-![Format Conversion Interface](format_conversion_interface.png)
+![Supported Types Interface](supported_types_interface.png)
+![Converter Interface](conveter_interface.png)
 
 ## Contributing
+This project is currently maintained by a single developer and is not open for external contributions. However, you are welcome to:
 
-This project is currently maintained by a single developer and is not open for external contributions. However, feel free to explore the code, use it for learning, and share feedback or suggestions by opening an issue.
+Explore the code and use it for learning purposes.
+
+Share feedback, suggestions, or report issues by opening a [GitHub issue](https://github.com/Silen1t/FerroInk/issues).
+
+Thank you for your understanding and support!
 
 ## License
 
-This project is licensed under the CC0 1.0 License. See the LICENSE file for details.
+This project is licensed under the Creative Commons Zero v1.0 Universal (CC0 1.0) license.
+You can copy, modify, distribute, and perform the work, even for commercial purposes, all without asking permission.
+For more details visit [Creative Commons](https://creativecommons.org/publicdomain/zero/1.0/).

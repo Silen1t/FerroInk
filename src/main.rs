@@ -1,17 +1,12 @@
 // Prevent console window in addition to Slint window in Windows release builds when, e.g., starting the app via file manager. Ignored on other platforms.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use image::{open, DynamicImage, ImageBuffer, ImageFormat};
 use rayon::prelude::*;
 use rfd::AsyncFileDialog;
 use slint::{
     LogicalSize, Model, ModelRc, SharedString, ToSharedString, VecModel, Weak, WindowSize,
 };
-use std::{
-    error::Error,
-    process::Command,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashSet, env, error::Error, path::Path, process::Command, sync::Arc};
 
 slint::include_modules!();
 
@@ -35,7 +30,6 @@ fn setup_callbacks(app: &Arc<AppWindow>) {
     button_selection_image(&app);
     button_selection_image_output(&app);
     button_apply_changes(&app);
-    select_file_format(&app);
 }
 
 /// Button Selection Image
@@ -49,8 +43,9 @@ fn button_selection_image(app: &Arc<AppWindow>) {
                     .set_directory(START_DIRECTORY)
                     .add_filter(
                         "image",
-                        // "Png","WebP","Bmp","Jpeg"
-                        &["png", "bmp", "webp", "jpeg"],
+                        &[
+                            "svg", "pdf", "png"
+                        ],
                     )
                     .pick_files()
                     .await
@@ -92,20 +87,14 @@ fn button_selection_image_output(app: &Arc<AppWindow>) {
 /// Button Selection Image
 fn button_apply_changes(app: &Arc<AppWindow>) {
     let app_weak = app.as_weak(); // Create a Weak reference to app
-    app.on_ButtonApplyChangesClicked(move |paths, output_dir, name, format| {
+    app.on_ButtonApplyChangesClicked(move |paths, output_dir, format_index| {
         if let Some(app_upgrade) = app_weak.upgrade() {
             let paths_vec: Vec<String> = (0..paths.row_count())
                 .filter_map(|i| paths.row_data(i).map(|s| s.to_string()))
                 .collect();
             let app_weak = app_upgrade.as_weak();
             std::thread::spawn(move || {
-                process_images(
-                    paths_vec,
-                    &output_dir.to_string(),
-                    &name.to_string(),
-                    &format,
-                    &app_weak,
-                );
+                process_images(paths_vec, &output_dir.to_string(), &format_index, &app_weak);
             });
         }
     });
@@ -114,23 +103,24 @@ fn button_apply_changes(app: &Arc<AppWindow>) {
 // Process Images
 fn process_images(
     paths: Vec<String>,
-    output_path: &String,
-    file_name: &String,
-    format: &SupportedImageFormats,
+    output_dir: &String,
+    format_index: &i32,
     app_weak: &Weak<AppWindow>,
 ) {
     // Callback
     let show_wating_screen = || {
         let _ = app_weak.upgrade_in_event_loop(move |app| {
-            app.invoke_UpdateWatingText("Processing files... This may take a few moments depending on the number of files you selected. Please wait."
-            .to_shared_string());
+            app.invoke_UpdateWatingText(
+                "Processing files... This may take a few moments depending on the number of files you selected. Please wait.".to_shared_string()
+            );
             app.invoke_ShowWatingScreen(true);
             app.set_can_exit_wating_screen(false);
         });
     };
     show_wating_screen();
 
-    let output_folder = output_path.to_string();
+    let output_folder = output_dir.to_string();
+
     // Callback
     let can_exit_wating_screen = || {
         let _ = app_weak.upgrade_in_event_loop(move |app| {
@@ -141,23 +131,44 @@ fn process_images(
 
             let output = output_folder;
             app.on_ExitWatingScreen(move || {
-                // the file manager when all images has finished converting
+                // the file manager when all images have finished converting
                 open_file_explorer(&output);
             });
             app.set_can_exit_wating_screen(true);
         });
     };
 
-    let counter: Arc<Mutex<i16>> = Arc::new(Mutex::new(0)); // Create a Mutex-wrapped counter
-    paths.par_iter().for_each(|path| {
-        if let Ok(count) = counter.lock() {
-            iter_paths(path, output_path, file_name, &format, *count);
-        }
+    // Assume the binary and the Inkscape folder are in the same directory.
+    let exe_path = env::current_exe().expect("Failed to get current exe path");
+    let exe_dir = exe_path.parent().expect("Failed to get exe directory");
+    let inkscape_cli = exe_dir.join(r#"Inkscape\bin\inkscape.exe"#);
+    let inkscape_display_path = inkscape_cli.display().to_string();
+    let inkspace_dir = inkscape_display_path.as_str();
 
-        if let Ok(mut counter_lock) = counter.lock() {
-            // Lock the Mutex and increment the counter
-            *counter_lock += 1;
-        }
+    let format = selected_format(format_index);
+    let export_type = format.as_str();
+
+    paths.par_iter().for_each(|image_path| {
+        let input_path = Path::new(image_path);
+
+        let output_path = format!(
+            "{}/{}.{}",
+            &output_dir,
+            input_path.file_stem().unwrap().to_str().unwrap(),
+            export_type
+        );
+
+        // Input and output file paths
+        let input_file = format!(r#"{}"#, input_path.display().to_shared_string().as_str());
+        let output_file = format!(r#"{}"#, output_path.as_str());
+
+        // Save image in the selected format
+        convert_file(
+            &input_file.as_str(),
+            &output_file.as_str(),
+            export_type,
+            inkspace_dir,
+        );
     });
 
     can_exit_wating_screen();
@@ -174,113 +185,55 @@ fn open_file_explorer(path: &str) {
 
     #[cfg(target_os = "macos")]
     {
-        if Err(err) = Command::new("open").arg(path).spawn() {
+        if ({
+            Err(err) = Command::new("open").arg(path).spawn();
+        }) {
             println!("Failed to open Finder: {}", err);
         }
     }
 
     #[cfg(target_os = "linux")]
     {
-        if Err(err) = Command::new("xdg-open").arg(path).spawn() {
+        if ({
+            Err(err) = Command::new("xdg-open").arg(path).spawn();
+        }) {
             println!("Failed to open file manager: {err}");
         }
     }
 }
 
-// Iter Paths For Images
-fn iter_paths(
-    path: &String,
-    output_dir: &String,
-    name: &String,
-    format: &SupportedImageFormats,
-    counter: i16,
-) {
-    if let Ok(_image) = open(path.as_str()) {
-        // Map format to extension and image format
-        let (extension, image_format) = match format {
-            slint_generatedAppWindow::SupportedImageFormats::Png => ("png", ImageFormat::Png),
-            slint_generatedAppWindow::SupportedImageFormats::Jpeg => ("jpeg", ImageFormat::Jpeg),
-            slint_generatedAppWindow::SupportedImageFormats::WebP => ("webp", ImageFormat::WebP),
-            slint_generatedAppWindow::SupportedImageFormats::Bmp => ("bmp", ImageFormat::Bmp),
-        };
+fn convert_file(input_file: &str, output_file: &str, export_type: &str, inkscape_path: &str) {
+    // Construct the Inkscape command
+    let mut cmd = Command::new(inkscape_path);
+    let vector_formats: HashSet<&str> = ["svg", "pdf"]
+        .iter()
+        .cloned()
+        .collect();
 
-        // Create the output file path
-        let output_path = format!("{}/{}{}.{}", output_dir, name, counter, extension);
+    cmd.arg(input_file) // Input file
+        .arg("--export-filename") // Specify the output file
+        .arg(output_file)
+        .arg(format!("--export-type={}", export_type)); // Export type
 
-        // Save image in the selected format
-        change_image_format(path, &image_format, &output_path);
-    } else {
-        eprintln!("Failed to open image: {}", path);
+    if vector_formats.contains(export_type) {
+        cmd.arg("--export-dpi=600"); // Set DPI (useful for raster formats)
+    }
+
+    let status = cmd.status();
+
+    match status {
+        Ok(s) if s.success() => println!("Converted: {} -> {}", input_file, output_file),
+        _ => eprintln!("Failed to convert: {} -> {}", input_file, output_file),
     }
 }
 
-/// Select File Format
-fn select_file_format(app: &Arc<AppWindow>) {
-    let app_weak = app.as_weak(); // Create a Weak reference to app
-    if let Some(app_upgrade) = app_weak.upgrade() {
-        app_upgrade
-            .clone_strong()
-            .on_SelectFileFormat(move |index| {
-                if let Some(format) = match index {
-                    0 => Some(slint_generatedAppWindow::SupportedImageFormats::Png),
-                    1 => Some(slint_generatedAppWindow::SupportedImageFormats::WebP),
-                    2 => Some(slint_generatedAppWindow::SupportedImageFormats::Bmp),
-                    3 => Some(slint_generatedAppWindow::SupportedImageFormats::Jpeg),
-                    _ => None, // Handle invalid indices explicitly
-                } {
-                    app_upgrade.set_format_selected(format);
-                } else {
-                    eprintln!("Invalid format index: {}", index);
-                }
-            });
-    }
-}
-
-// Change Image Format
-fn change_image_format(path: &String, format: &ImageFormat, output_path: &String) {
-    match open(path) {
-        Ok(image) => {
-            convert_image_color(&format, image, output_path.as_str());
-        }
-        Err(err) => {
-            eprintln!("Failed to open image: {}", err);
-        }
-    }
-}
-
-fn convert_image_color(format: &ImageFormat, image: DynamicImage, output_path: &str) {
-    // "Png","WebP","Bmp","Jpeg"
-    match format {
-        ImageFormat::Jpeg => {
-            let img = image.to_rgb8();
-            convert_image_format_to_rbg8(&img, output_path, format);
-        }
-        _ => {
-            convert_image_format(&image, output_path, format);
-        }
-    }
-}
-
-// Convert Image Format To RB8bit Images
-fn convert_image_format_to_rbg8(
-    img: &ImageBuffer<image::Rgb<u8>, Vec<u8>>,
-    output_path: &str,
-    format: &ImageFormat,
-) {
-    match img.save_with_format(&output_path, *format) {
-        Ok(_new_img) => {}
-        Err(err) => {
-            eprintln!("Filed to convert the image: {}", err);
-        }
-    }
-}
-
-// Convert Image Format
-fn convert_image_format(img: &DynamicImage, output_path: &str, format: &ImageFormat) {
-    match img.save_with_format(&output_path, *format) {
-        Ok(_new_img) => {}
-        Err(err) => {
-            eprintln!("Filed to convert the image: {}", err);
-        }
-    }
+fn selected_format(format_inde: &i32) -> String {
+    // Map format to extension and image format
+    let extension = match format_inde {
+        0 => "svg",
+        1 => "pdf",
+        2 => "png",
+        _ => "",
+    };
+    extension.to_string()
 }

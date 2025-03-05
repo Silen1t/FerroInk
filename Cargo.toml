@@ -1,15 +1,14 @@
 [package]
-name = "Formatify"
-version = "1.0.0"
-edition = "2021"
+name = "FerroInk"
+version = "1.2.0"
+edition = "2024"
 readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-image = "0.25.5"
 rayon = "1.10.0"
-rfd = "0.15.1"
+rfd = "0.15.2"
 slint = "1.9.1"
 
 [build-dependencies]

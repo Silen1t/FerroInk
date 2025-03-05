@@ -1,27 +1,21 @@
-import { Button, VerticalBox, LineEdit, CheckBox, HorizontalBox, ComboBox } from "std-widgets.slint";
-
-enum SupportedImageFormats {
-    Png,
-    WebP,
-    Bmp,
-    Jpeg
-}
+import { Button, VerticalBox, LineEdit, CheckBox, HorizontalBox, ComboBox, TabWidget, StandardTableView, GridBox } from "std-widgets.slint";
 
 export component AppWindow inherits Window {
     // Window Properties
-    title: "Formatify";
-    icon: @image-url("assets/images/FormatifyAppIcon.png");
-    max-height: 500px;
-    min-height: 480px;
-    max-width: 540px;
-    min-width: 509px;
+    title: "FerroInk";
+    icon: @image-url("assets/images/FerroInkAppIcon.png");
+    max-height: 600px;
+    min-height: 520px;
+    max-width: 650px;
+    min-width: 600px;
     full-screen: false;
     background: #1e1f22;
+
 
     // Callbacks
     callback ButtonSelectImageClicked();
     callback ButtonSelectImageOutputClicked();
-    callback ButtonApplyChangesClicked([string], string, string, SupportedImageFormats);
+    callback ButtonApplyChangesClicked([string], string, int);
     callback SelectFileFormat(int);
 
     // Wating Screen Callbacks
@@ -32,124 +26,171 @@ export component AppWindow inherits Window {
     // Main Properties
     in-out property <[string]> image-path;
     in-out property <string> image-output-path;
-    out property <string> output-image-name;
-    in-out property <SupportedImageFormats> format-selected: SupportedImageFormats.Png;
-    out property <[string]> supported-image-formats: ["Png", "WebP", "Bmp", "Jpeg"];
+    out property <int> selected-format: -1;
 
     // Wating Screen Properties
     out property <string> message;
     out property <bool> show-wating-screen: false;
     in-out property <bool> can-exit-wating-screen: false;
+    TabWidget {
+        current-index: 0;
+        Tab {
+            title: "Supported Types";
+            VerticalLayout {
+                padding: 50px;
+                alignment: center;
+                spacing: 25px;
 
-    VerticalLayout {
-        padding: 50px;
-        alignment: center;
-        spacing: 25px;
-
-        Text {
-            color: white;
-            text: "Formatify";
-            font-size: 40px;
-            font-weight: 800;
-            horizontal-alignment: center;
-        }
-        // Select Image Box
-        HorizontalBox {
-            alignment: center;
-            spacing: 25px;
-            Button {
-                width: 100px;
-                primary: true;
-                text: "Select Images";
-                clicked => {
-                    root.ButtonSelectImageClicked();
+                Text {
+                    color: white;
+                    text: "Supported Types";
+                    font-size: 35px;
+                    font-weight: 800;
+                    horizontal-alignment: center;
                 }
-            }
 
-            edit-image-path := LineEdit {
-                width: 200px;
-                font-size: 25px;
-                read-only: true;
-                text: image-path[0];
-                horizontal-alignment: center;
-            }
-        }
-
-        // Select Output Path
-        HorizontalBox {
-            alignment: center;
-            spacing: 25px;
-            Button {
-                width: 150px;
-                primary: true;
-                text: "Select Output";
-                clicked => {
-                    root.ButtonSelectImageOutputClicked();
-                }
-            }
-
-            edit-image-output-path := LineEdit {
-                width: 200px;
-                font-size: 18px;
-                read-only: true;
-                text: root.image-output-path;
-                horizontal-alignment: center;
-            }
-        }
-
-        HorizontalBox {
-            alignment: center;
-            spacing: 25px;
-
-            Text {
-            color: white;
-                text: "File Name";
-                font-size: 18px;
-                horizontal-alignment: center;
-            }
-
-            LineEdit {
-                width: 200px;
-                font-size: 18px;
-                horizontal-alignment: center;
-                placeholder-text: "Enter File Name";
-                accepted(text) => {
-                    output-image-name = self.text;
-                }
-                edited(text) => {
-                    output-image-name = self.text;
+                StandardTableView {
+                    width: parent.width - 100px;
+                    height: parent.height - 100px;
+                    columns: [{ title: "From Format" }, { title: "To Formats" }];
+                    rows: [
+                    // Vector Format Conversions
+                    [{ text: "SVG" }, { text: ".pdf, .png" }],
+                    // Raster Format Conversions
+                    [{ text: "PNG" }, { text: ".svg, .pdf" }],
+                        [{ text: "PDF" }, { text: ".svg" }],
+                    ];
                 }
             }
         }
 
-        HorizontalBox {
-            alignment: center;
-            spacing: 25px;
-            ComboBox {
-                model: supported-image-formats;
-                current-index: 0;
-                width: 100px;
-                selected(current-value) => {
-                    root.SelectFileFormat(self.current-index);
-                }
-            }
-        }
+        Tab {
+            title: "Converter";
 
-        HorizontalBox {
-            alignment: center;
-            spacing: 25px;
-            // Confirem Changes
-            Button {
-                width: 150px;
-                primary: true;
-                text: "Convert";
-                enabled: CanConvert();
-                clicked => {
-                    root.ButtonApplyChangesClicked(image-path,image-output-path,output-image-name,format-selected);
+            VerticalLayout {
+                padding: 10px;
+                alignment: center;
+                spacing: 25px;
+                Text {
+                    color: white;
+                    text: "Converter";
+                    font-size: 35px;
+                    font-weight: 800;
+                    horizontal-alignment: center;
+                }
+
+                // Select Image Box
+                HorizontalBox {
+                    alignment: center;
+                    spacing: 25px;
+                    Button {
+                        width: 100px;
+                        primary: true;
+                        text: "Select Images";
+                        clicked => {
+                            root.ButtonSelectImageClicked();
+                        }
+                    }
+
+                    edit-image-path := LineEdit {
+                        width: 200px;
+                        font-size: 25px;
+                        read-only: true;
+                        text: image-path[0];
+                        horizontal-alignment: center;
+                    }
+                }
+        
+                // Select Output Path
+                HorizontalBox {
+                    alignment: center;
+                    spacing: 25px;
+                    Button {
+                        width: 150px;
+                        primary: true;
+                        text: "Select Output";
+                        clicked => {
+                            root.ButtonSelectImageOutputClicked();
+                        }
+                    }
+
+                    edit-image-output-path := LineEdit {
+                        width: 200px;
+                        font-size: 18px;
+                        read-only: true;
+                        text: root.image-output-path;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                // Check Boxs
+                HorizontalBox {
+                    alignment: center;
+                    spacing: 10px;
+                    svg-checkbox := CheckBox {
+                        text: "SVG";
+                        toggled => {
+                            if (self.checked) {
+                                selected-format = 0;
+                                svg-checkbox.checked = true;
+                                pdf-checkbox.checked = false;
+                                png-checkbox.checked = false;
+                            } else {
+                                svg-checkbox.checked = true;
+                                selected-format = 0;
+                            }
+                        }
+                    }
+
+                    pdf-checkbox := CheckBox {
+                        text: "PDF";
+                        toggled => {
+                            if (self.checked) {
+                                selected-format = 1;
+                                svg-checkbox.checked = false;
+                                pdf-checkbox.checked = true;
+                                png-checkbox.checked = false;
+                            } else {
+                                svg-checkbox.checked = true;
+                                selected-format = 0;
+                            }
+                        }
+                    }
+
+                    png-checkbox := CheckBox {
+                        text: "PNG";
+                        toggled => {
+                            if (self.checked) {
+                                selected-format = 2;
+                                svg-checkbox.checked = false;
+                                pdf-checkbox.checked = false;
+                                png-checkbox.checked = true;
+                            } else {
+                                svg-checkbox.checked = true;
+                                selected-format = 0;
+                            }
+                        }
+                    }
+                }
+
+                // Confirm Button Box
+                HorizontalBox {
+                    alignment: center;
+                    spacing: 25px;
+                    // Confirem Changes
+                    Button {
+                        width: 150px;
+                        primary: true;
+                        text: "Convert";
+                        enabled: CanConvert();
+                        clicked => {
+                            root.ButtonApplyChangesClicked(image-path,image-output-path,selected-format);
+                        }
+                    }
                 }
             }
         }
-    }  
+    }
 
     Rectangle {
         width: parent.width;
@@ -199,6 +240,6 @@ export component AppWindow inherits Window {
     }
 
     function CanConvert() -> bool {
-        return image-path.length > 0 && image-output-path != "" && output-image-name != "";
+        return image-path.length > 0 && image-output-path != "" && selected-format >= 0;
     }
 }
